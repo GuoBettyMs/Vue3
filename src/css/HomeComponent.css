@@ -1,0 +1,166 @@
+/* ID 选择器,选中唯一元素（ID 在页面中应唯一）,优先级最高*/
+.home-container{
+    line-height: 1.6;
+
+    /* --- 默认浅色模式样式 --- */
+    padding: 20px;
+    border-radius: 8px;
+    background-color: #ffffff; 
+    color: #333333;
+    transition: all 0.3s ease; /* 添加过渡动画让它更丝滑 */
+    border: 1px solid #eee;
+}
+
+
+/* --- 深色模式样式 --- */
+/* 当 .home-container 拥有 .dark 类名时生效 */
+.home-container.dark {
+  background-color: #1a1a1a;
+  color: #f0f0f0;
+  border-color: #333;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.home-container ::before, 
+.home-container ::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/********************************************* 3. 组件样式（按钮、卡片等） ***************************************/
+
+/* 类选择器（Class）,	选中所有带该 class 的元素, 如 <a class="form-group">  */
+.form-group {
+  margin-bottom: 20px;
+}
+
+/* 
+  布局用 rem（稳定）, rem 表示相对于根元素（<html>）的字体大小
+  组件内部用 em（相对自身）,em 相对于当前元素的字体大小,如果当前元素没有设置 font-size，则继承父元素的
+  嵌套时会“累积放大”（1.5em 的子元素再套 1.5em → 2.25 倍）
+*/
+.btn {
+  font-size: 1.6rem; /* 16px */
+  padding: 0.8em 1.5em; /* 相对于16px → 上下边距 12.8px * 左右边距 24px */
+  width: 100%;  /* 自适应宽度 */
+  background: #2575fc;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+/* 当用户把鼠标移到一个 可用的 按钮上时，背景色变为 #1a68e8
+  .btn:hover → 当鼠标悬停在 class = btn 按钮上时
+  :not(:disabled) → 但排除那些被禁用的按钮（即 disabled 属性为真的按钮）
+
+  为什么需要 :not(:disabled)？
+  如果没有它，禁用的按钮在 hover 时也会变色，造成误导（用户以为能点，其实不能）。
+  加上后，只有能点击的按钮才有 hover 效果，体验更清晰 
+*/
+.btn:hover:not(:disabled) {
+  background: #1a68e8;
+}
+
+/* 当按钮带有 disabled 属性时（即 <button disabled>），应用以下样式 */
+.btn:disabled {
+  background: #ccc;
+  cursor: not-allowed; /* 鼠标指针变成 🚫 禁止符号 */
+}
+
+.results {
+  margin-top: 24px;
+}
+
+.results h2 {
+  margin-bottom: 16px;
+  color: #2c3e50;
+}
+
+.result-item {
+  display: flex; /* 弹性布局 */
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: #f8f9ff;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border-left: 4px solid #2575fc;
+}
+
+.result-item p {
+  flex: 1;
+  margin-right: 12px;
+  word-break: break-word;
+}
+
+.copy-btn {
+  background: #eef2ff;
+  color: #4f6cf9;
+  border: 1px solid #cbd5ff;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.copy-btn:hover {
+  background: #dce5ff;
+}
+
+.hint {
+  text-align: center;
+  color: #777;
+  margin-top: 30px;
+  font-style: italic;
+}
+
+
+
+
+/* 标签选择器：作用于所有 <header>,优先级最低,如 <header>网站头部</header> */
+header {
+  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  color: white;
+  padding: 24px 20px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* 后代选择器, 仅限在 <header> 内部的 <h1> 段落 */
+header h1 {
+  font-size: 2.8rem;/* 在 CSS 开头设置 1rem = 10px,所以 = 10px * 2.8 = 28px */
+  margin-bottom: 8px;
+}
+
+header p {
+  opacity: 0.9;
+  font-size: 16px;
+}
+
+.home-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #444;
+}
+
+
+
+/* 标签选择器,让所有表单输入框和下拉菜单保持一致的外观,页面中所有 <input> 和 <select> 元素 */
+.form-group input, 
+.form-group select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+
+
+

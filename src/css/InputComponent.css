@@ -1,0 +1,364 @@
+
+/********************************************* 
+ * button
+ ********************************************/
+
+.input-button-container{
+    background-color: rgb(197, 198, 229);
+}
+.input-button-container {
+  border: 2px dashed #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;  /* 关键：左对齐 */
+  gap: 16px;
+  padding: 30px;
+  /* background: linear-gradient(135deg, #667eea 50%, #764ba2 100%); */
+  border-radius: 20px;
+  max-width: 300px;
+}
+
+
+.input-button-container button,
+.input-button-container input[type="button"] {
+  width: auto;           /* 宽度自适应内容 */
+  min-width: 140px;      /* 最小宽度，保持统一感 */
+  transition: all 0.3s;
+}
+
+.input-button-container .btn-input {
+  background: #4CAF50;  /* 绿色：停止状态 */
+  color: white;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.input-button-container .btn-input .running {
+  background: rgb(244  67  54 / 50%);  /* 红色：运行状态 */
+}
+
+.input-button-container .custom-btn {
+  background: transparent;
+  border: none;
+  color: #ff6b6b;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-button-container .custom-btn:hover {
+  background: #2575fc;
+  color: white;
+}
+
+
+#submitBtn {
+  background: transparent;
+  border: 2px solid #fcfc25d9;
+  color: #e8f0f8;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.input-button-container .underline-btn {
+  background: transparent;
+  color: #666;
+  padding: 8px 16px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  border: none;
+  font-size: 16px;
+}
+
+.input-button-container .underline-btn:hover {
+  color: #2575fc;
+}
+
+.input-button-container .underline-btn:hover span:first-child {
+  transform: rotate(15deg);
+}
+
+.input-button-container .underline-btn:hover .underline {
+  transform: scaleX(1);
+}
+
+.input-button-container .underline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #2575fc;
+  transform: scaleX(0);
+  transition: transform 0.3s;
+}
+
+
+.input-button-container .download-btn {
+  background: rgb(0, 167, 69);
+  background-image: linear-gradient(
+    to top left,
+    rgb(0 0 0 / 20%),
+    rgb(0 0 0 / 20%) 30%,
+    rgb(0 0 0 / 0%)
+  ); /* 表面加一层阴影层 */
+  box-shadow:
+    inset 2px 2px 3px rgb(255 255 255 / 60%),
+    inset -2px -2px 3px rgb(0 0 0 / 60%);  /* 底部加一层阴影层,左上亮右下暗 */
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  text-shadow: 1px 1px 1px #000;
+}
+
+/* 悬浮时背景色发生变化,强化选中效果 */
+.input-button-container .download-btn:hover {
+  background-color: rgb(88, 187, 111);
+}
+
+/* 点击时底部阴影层发生变化,强化点击效果 */
+.input-button-container .download-btn:active {
+  box-shadow:
+    inset -2px -2px 3px rgb(255 255 255 / 60%),
+    inset 2px 2px 3px rgb(0 0 0 / 60%);
+}
+
+.input-button-container .download-btn span:last-child {
+  background: rgba(255,255,255,0.2);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+
+
+/********************************************* 
+ * checkbox
+ ********************************************/
+
+.input-checkbox-container{
+    background-color: antiquewhite;
+    font-family: sans-serif;
+}
+
+.input-checkbox-container div {
+  display: flex;
+  align-items: center;
+}
+
+.input-checkbox-container label {
+  margin-right: 15px;
+}
+
+/* 所有复选框和单选框基础样式 */
+.input-checkbox-container input[type="checkbox"],
+.input-checkbox-container input[type="radio"] {
+  border: 2px solid #333;
+  margin: 0 5px 0 0;   /* 避免默认边距影响,右边距统一 */
+  flex-shrink: 0;      /* 防止被压缩 */
+}
+
+/* 单选框样式 */
+.input-checkbox-container input[type="radio"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+/* 单选框样式 - 选中 */
+.input-checkbox-container input[type="radio"]:checked {
+  border: 6px solid black;
+}
+
+/* ===== 复选框样式 ===== */
+.input-checkbox-container input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+}
+
+/* ===== 第一个 fieldset 的复选框 - 选中 ===== */
+.input-checkbox-container #form1 input[type="checkbox"]:checked {
+  appearance: none;
+  background: red;
+  border: none;
+  display: flex;
+  justify-content: center; /* 水平居中 */
+  align-items: center;     /* 垂直居中 */
+
+}
+
+.input-checkbox-container #form1 input[type="checkbox"]:checked::after {
+  content: "*";
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  position: static;  
+}
+
+.input-checkbox-container li {
+  display: flex;
+  align-items: center;
+  margin: 5px 0;
+  padding-left: 20px;     /* 为小圆点留空间 */
+}
+
+/* 用伪元素模拟小圆点 */
+.input-checkbox-container li::before {
+  content: "•"; /* 使用 Unicode 圆点 */
+  color: black;
+  font-size: 1.2em;
+  line-height: 1;
+  /* 调整圆点位置 */
+  margin-right: 8px; 
+  /* 如果圆点位置不对，可以使用 absolute 定位微调 */
+  /* position: absolute; left: -15px; top: 50%; transform: translateY(-50%); */
+}
+
+/* 按钮和 legend 样式 */
+.input-checkbox-container button,
+.input-checkbox-container legend {
+  color: white;
+  background-color: black;
+  padding: 5px 10px;
+  border-radius: 0;
+  border: 0;
+  font-size: 14px;
+}
+
+.input-checkbox-container legend {
+  margin: 0 0 5px 0
+}
+
+.input-checkbox-container button {
+  margin: 5px 0 5px 0
+}
+
+.input-checkbox-container button:hover,
+.input-checkbox-container button:focus {
+  color: #999;
+}
+
+.input-checkbox-container button:active {
+  background-color: white;
+  color: black;
+  outline: 1px solid black;
+}
+
+/********************************************* 
+ * date
+ ********************************************/
+
+.input-button-container span,
+.input-date-container span {
+  position: relative;
+}
+
+.input-button-container span::after,
+.input-date-container span::after  {
+  right: -18px;
+  position: absolute;
+}
+
+.input-button-container input:invalid + span::after,
+.input-date-container input:invalid + span::after  {
+  content: "✖";
+}
+
+.input-button-container input:valid + span::after ,
+.input-date-container input:valid + span::after {
+  content: "✓";
+}
+
+
+
+/********************************************* 
+ * file
+ ********************************************/
+
+.fileForm {
+  background: #ccc;
+  margin: 0 auto;
+  border: 1px solid black;
+}
+
+.fileForm ol {
+  padding-left: 0;
+}
+
+.fileForm li,
+.fileForm div > .fileForm p {
+  background: #eee;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  list-style-type: none;
+  border: 1px solid black;
+}
+
+.fileForm img {
+  height: 64px;
+  order: 1;
+}
+
+.fileForm p {
+  line-height: 32px;
+  padding-left: 10px;
+}
+
+.fileForm label,
+.fileForm button {
+  background-color: #7f9ccb;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px ridge black;
+  font-size: 1.8rem;
+  height: auto;
+}
+
+.fileForm label:hover,
+.fileForm button:hover {
+  background-color: #2d5ba3;
+  color: white;
+}
+
+.fileForm label:active,
+.fileForm button:active {
+  background-color: #0d3f8f;
+  color: white;
+}
+
+
+/********************************************* 
+ * range
+ ********************************************/
+
+.range-container datalist {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  writing-mode: vertical-lr;
+  width: 200px;
+}
+
+.range-container option {
+  padding: 0;
+}
+
+.range-container input[type="range"] {
+  width: 200px;
+  margin: 0;
+}
