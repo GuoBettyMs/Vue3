@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Launch Chrome against localhost",
+      "url": "http://localhost:5173/", // 必须与项目实际地址完全一致[reference:10][reference:11]
+      "webRoot": "${workspaceFolder}", // Vite 项目通常指向项目根目录[reference:12]
+      "sourceMapPathOverrides": {
+        "/src/*": "${webRoot}/src/*"
+      }
+    }
+  ]
+}

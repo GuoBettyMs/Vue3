@@ -52,11 +52,12 @@
                 v-for="(column, colIndex) in multiData" 
                 :key="colIndex"
                 class="picker-wheel-container">
-
                 <div 
                     class="picker-wheel" 
                     :ref="el => setColumnRef(el, colIndex)"
-                    @scroll="onMultiScroll(colIndex, $event)">
+                    @scroll="onMultiScroll(colIndex, $event)"
+                    @wheel="onWheel(colIndex, $event)"
+                    >
 
                     <div v-for="(num, idx) in column" 
                         :key="idx"
@@ -65,9 +66,13 @@
                         {{ String(num % 10).padStart(1, '0') }}
                     </div>
                 </div>
-
                 <div class="picker-wheel-mask"></div>
                 <div class="picker-wheel-highlight"></div>
+            </div>
+
+            <!-- 动态小数点 -->
+            <div class="decimal-point" :class="{'three-decimal-dot': currentMode === 'three'}">
+                <span>.</span>
             </div>
         </div>
         <div class="selected-value">当前选中: {{ selectedMultiText }}</div>
@@ -99,7 +104,7 @@
 *  使用 Composition API
 ********************************************/
 import { ref, reactive } from 'vue'
-import { computed, watch, onMounted } from 'vue'
+import { computed, watch, onMounted, onUnmounted } from 'vue'
 import { nextTick } from 'vue'
 
 /********************************************* 
@@ -108,17 +113,21 @@ import { nextTick } from 'vue'
 const selectedConfig = ref(null)
 const numberInputConfig = ref([
     { maxValue: 30.5, maxIntegerPlaces: 2, maxDecimalPlaces: 2 },
-    { maxValue: 5.1, maxIntegerPlaces: 1, maxDecimalPlaces: 3 }
+    { maxValue: 5.1, maxIntegerPlaces: 1, maxDecimalPlaces: 3 },
+    { maxValue: 10.1, maxIntegerPlaces: 2, maxDecimalPlaces: 3 } 
 ])
 
-/********************************************* 
-    * Test-roller-selector(multiplus)
-    ********************************************/
+/**** Test-roller-selector(multiplus) ********************************************/
 
+
+let delta = 0 //滚动方向,默认不滚动
+// 动态模式：'three' 表示3位小数（<10），'two' 表示2位小数（≥10）
+const currentMode = ref('three') 
 //多列
 const baseData = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]// 基础数字 0-9
 const repeatCount = 100      // 重复次数，总数 = 10 * 100 = 1000 项
 let scrollTimer = null
+let wheelTimer = null
 let isAdjusting = false    // let 关键字用于声明一个可以被重新赋值的变量, 防止循环触发
 const itemHeight = 50        // const 声明的变量是一个常量, 每个选项高度
 const multiData = ref([]) // 存放生成的循环数据
@@ -127,9 +136,7 @@ const defaultSelections = ref([3, 8, 0, 0])// 初始选中值
 const columnRefs = ref({})
 let lastScrollValue = null; // 记录滚动前的值
 
-/********************************************* 
-    * Test-roller-selector(single)
-    ********************************************/
+/***** Test-roller-selector(single) ********************************************/
 
 //单列
 const wheel = ref(null)
@@ -138,9 +145,7 @@ const currentValue = ref(4)      // 当前选中的数字
 let single_scrollTimer = null
 let single_isAdjusting = false    // 防止循环触发
 
-/********************************************* 
-    * Test-numeric-keypad
-    ********************************************/
+/**** Test-numeric-keypad********************************************/
 const finalvalue = ref('')
 const groups = ref([
     { id: 1, name: '1' },
@@ -182,8 +187,7 @@ const currentMaxIntegerPlaces = computed(() => {
     return currentConfig.value.maxIntegerPlaces;
 })
 
-/**** Test-roller-selector(multiplus)
-    ********************************************/
+/**** Test-roller-selector(multiplus)********************************************/
 
 //返回选择的多列文本
 const selectedMultiText = computed(() => {
@@ -191,8 +195,7 @@ const selectedMultiText = computed(() => {
     return multiData.value.map((column, idx) => column[selectedMultiIndex.value[idx]]).join(' - ')
 })
 
-/*** Test-numeric-keypad
-    ********************************************/
+/*** Test-numeric-keypad ********************************************/
 
 //计算每个数字键的状态（用于模板）
 const keyStates = computed(() => {
@@ -258,85 +261,162 @@ const goBack = () => {
 
 /** Test-roller-selector(multiplus) ********************************************/
 
+
 /**
-    * 核心方法：根据配置生成每一列的基础数据
-    * @param {Object} config - 配置对象
-    * @returns {Array<Array>} - 二维数组，例如 [['0','1','2','3'], ['0'...'9']]
-    */
-const generateColumnsData = (config) => {
-    const columns = []
-    const maxVal = config.maxValue
-    const intPart = Math.floor(maxVal)
-    
-    // 1. 处理整数位
-    // 将数字转为字符串以便按位处理，例如 30.5 -> "30"
-    const intStr = intPart.toString()
-    // const intLen = intStr.length
-
-    for (let i = 0; i < config.maxIntegerPlaces; i++) {
-        let limit = 9
-        // 如果配置的整数位长度 等于 最大值的字符串长度，则首位需要限制
-        // 例如：maxValue=30.5, maxIntegerPlaces=2, intStr="30", 首位限制为3
-        if (config.maxIntegerPlaces === intStr.length && i === 0) {
-            limit = parseInt(intStr[0])
-
-            //console.log(`intStr=${intStr}, defaultSelections.value[0]=${defaultSelections.value[0]}`)
+* 根据模式返回整数位和小数位数量（仅针对10.1配置）
+* @param {Object} mode - 配置模式
+* @returns {integerPlaces, decimalPlaces} - 整数位数,小数位数
+*/
+const getModeConfig = (mode) => {
+    // 仅当当前配置是10.1时才启用动态模式
+    if (currentMaxValue.value === 10.1) {
+        return mode === 'three' 
+            ? { integerPlaces: 1, decimalPlaces: 3 } 
+            : { integerPlaces: 2, decimalPlaces: 2 }
+    } else {
+        // 其他配置使用固定位数
+        return {
+            integerPlaces: currentConfig.value.maxIntegerPlaces,
+            decimalPlaces: currentConfig.value.maxDecimalPlaces
         }
-
-        let colData = [];
-        for(let k=0; k<=limit; k++){
-            colData.push(k)
-        }
-        columns.push(colData)
     }
-    //console.log("generateColumnsData: ",columns.length, columns)
-
-    // 2. 处理小数位
-    // 简单起见，小数位通常都是 0-9，除非有极特殊的限制
-    for (let j = 0; j < config.maxDecimalPlaces; j++) {
-        columns.push([...baseData])
-    }
-    return columns
 }
 
 /**
- * 初始化循环数据并处理越界
- */
-const initLoopData = (config) => {
+* 根据模式生成列数据（每列是一个数字数组）
+* @param {Object} mode - 配置模式
+* @returns {number[]} - 数字数组
+*/
+const generateColumnsData = (mode) => {
+    const { integerPlaces, decimalPlaces } = getModeConfig(mode)
+    const maxDigits = valueToDigits(currentMaxValue.value, mode)
+    const columns = []
 
-    // 1. 计算当前选中的实际数值
-    // 假设 defaultSelections 是 [3, 0, 5] -> 30.5
-    let currentValStr = defaultSelections.value.join('')
-    
-    // 根据 config.maxDecimalPlaces 插入小数点 
-    if (config.maxDecimalPlaces > 0) {
-        const len = currentValStr.length
-        const intLen = len - config.maxDecimalPlaces
-        // 防止数组长度不够导致分割错误
-        if (intLen > 0) {
-             currentValStr = currentValStr.slice(0, intLen) + '.' + currentValStr.slice(intLen)
+    if (currentMaxValue.value === 10.1){
+        //<10, 列0 支持0-9; >=10, 列0支持0-1
+        for (let i = 0; i < integerPlaces; i++) {
+            if (mode === 'three') {
+                columns.push([...baseData])
+            }else{
+                for (let i = 0; i < integerPlaces; i++) {
+                    let limit = 9
+                    // 最高位限制为最大值的最高位
+                    if (i === 0) limit = maxDigits[0]
+                    columns.push(Array.from({ length: limit + 1 }, (_, k) => k))
+                }
+            }
+            
+        }
+    }else{
+        // 限制整数位范围（从高位到低位）
+        for (let i = 0; i < integerPlaces; i++) {
+            let limit = 9
+            // 最高位限制为最大值的最高位
+            if (i === 0) limit = maxDigits[0]
+            columns.push(Array.from({ length: limit + 1 }, (_, k) => k))
         }
     }
-    
-    const currentVal = parseFloat(currentValStr) || 0
 
-    // 2. 比较并重置
-    // 如果当前值 > 配置的最大值，说明越界了
-    if (currentVal > config.maxValue) {
-        //console.log(`当前值 ${currentVal} 超过最大值 ${config.maxValue}，正在重置为 0...`)
-        
-        // 构造全 0 数组，长度与配置位数一致
-        const totalLength = config.maxIntegerPlaces + config.maxDecimalPlaces
-        defaultSelections.value = Array(totalLength).fill(0)
-    }else{
-        //console.log(`当前值 ${currentVal} , 最大值 ${config.maxValue}`)
+    // 小数位（0-9）
+    for (let j = 0; j < decimalPlaces; j++) {
+        columns.push([...baseData])
     }
 
-    // --------------------------------
-    // 3. 生成基础列数据 (例如 [['0','1','2','3'], ['0'...'9']...])
-    const baseColumns = generateColumnsData(config)
-    
-    // 4. 填充循环数据以支持无限滚动
+    return columns
+}
+
+
+/**
+* 根据当前模式计算实际数值
+* @param {Object} selections - 数字数组
+* @returns {number} - 实际数值
+*/
+const computeCurrentValue = (selections) => {
+    const mode = currentMode.value
+    const { integerPlaces, decimalPlaces } = getModeConfig(mode)
+    const total = integerPlaces + decimalPlaces
+    // 取前 total 位，不足补0
+    let numStr = selections.slice(0, total).map(v => v.toString()).join('')
+    if (numStr.length < total) numStr = numStr.padStart(total, '0')
+    const intPart = numStr.slice(0, integerPlaces)
+    const decPart = numStr.slice(integerPlaces, total)
+    return parseFloat(`${intPart}.${decPart}`) || 0
+}
+
+/**
+* 将数值转换为指定位数的数字数组
+* @param {Object} value - 数值
+* @param {Object} mode - 配置模式
+* @returns {number[]} - 数字数组
+*/
+const valueToDigits = (value, mode) => {
+    const { integerPlaces, decimalPlaces } = getModeConfig(mode)
+    const fixed = value.toFixed(decimalPlaces)
+    const [intPart, decPart] = fixed.split('.')
+    const intStr = intPart.padStart(integerPlaces, '0')
+    const decStr = (decPart || '').padEnd(decimalPlaces, '0')
+    const combined = intStr + decStr
+    return combined.split('').map(ch => parseInt(ch, 10))
+}
+
+
+/**
+* 根据当前选中的数字数组自动判断模式（仅针对10.1配置）
+* @param {Object} selections - 数字数组
+* @returns {String} - 配置模式
+*/
+const determineMode = (selections) => {
+    // 用两位小数模式解析，看是否 >= 10
+    const tempMode = 'two'
+    const { integerPlaces, decimalPlaces } = getModeConfig(tempMode)
+    const total = integerPlaces + decimalPlaces
+    let numStr = selections.slice(0, total).map(v => v.toString()).join('')
+    if (numStr.length < total) numStr = numStr.padStart(total, '0')
+    const intPart = numStr.slice(0, integerPlaces)
+    const decPart = numStr.slice(integerPlaces, total)
+    const val = parseFloat(`${intPart}.${decPart}`) || 0
+    console.log('val= ', val)
+    if (val >= 10) return 'two'
+    return 'three'
+}
+
+
+/**
+* 初始化循环数据并处理越界
+* @param {Object} config - 配置模式
+* @returns {number[]} - 滚轮数据
+*/
+const initLoopData = (config) => {
+
+    // 1. 判断模式
+    if (config.maxValue !== 10.1) {
+        currentMode.value = config.maxValue >= 10 ? 'two' : 'three'
+    }else{
+        const detectedMode = determineMode(defaultSelections.value)
+        currentMode.value = detectedMode
+    }
+
+    // 2. 计算当前值
+    let currentVal = computeCurrentValue(defaultSelections.value)
+
+    // 3. 若超过最大值，重置为0
+    if (currentVal > config.maxValue) {
+        defaultSelections.value = Array(4).fill(0)
+        currentMode.value = 'three'
+        currentVal = 0
+    }
+
+    // 4. 确保长度始终为4
+    const mode = currentMode.value
+    const { integerPlaces, decimalPlaces } = getModeConfig(mode)
+    let digits = defaultSelections.value.slice(0, integerPlaces + decimalPlaces)
+    while (digits.length < integerPlaces + decimalPlaces) {
+        digits.push(0)
+    }
+    defaultSelections.value = digits
+
+    // 5. 生成列数据
+    const baseColumns = generateColumnsData(mode)
     multiData.value = baseColumns.map(colData => {
         let loopArr = []
         for (let i = 0; i < repeatCount; i++) {
@@ -344,21 +424,25 @@ const initLoopData = (config) => {
         }
         return loopArr
     })
-
-    // 5. 更新默认选中值 (确保不超过新生成的列范围)
+    console.log(`列[0]数据  = ${baseColumns[0]}`)
+    // 6. 更新选中索引
     selectedMultiIndex.value = [...defaultSelections.value]
 
-    // 6. 清空引用并重新对齐
+    // 7. 清空引用并对齐
     columnRefs.value = {}
-
     nextTick(() => {
-        defaultSelections.value.forEach((val, index) => {
-            alignToHighlight(index, val)
+        defaultSelections.value.forEach((val, idx) => {
+            alignToHighlight(idx, val)
         })
     })
 }
 
-//初始时居中对齐
+
+/**
+* 找到目标数值在中间区域的索引,实现居中对齐
+* @param {Object} colIndex - 当前列
+* @returns {number} value - 目标数值
+*/
 const alignToHighlight = (colIndex, value) => {
     const container = columnRefs.value[colIndex]
     if (!container) return
@@ -387,6 +471,209 @@ const alignToHighlight = (colIndex, value) => {
     container.scrollTop = targetScrollTop
 }
 
+/**
+* 处理进位/借位
+* @param {Object} colIndex - 当前列
+* @param {Object} oldDigit - 当前列的旧值
+* @param {Object} newDigit - 当前列的新值
+* @returns {number[]} - 滚轮数据
+*/
+const applyCarryBorrow = (colIndex, oldDigit, newDigit) => {
+    // 1. 构建新选中的数组（仅修改当前列）
+    let newSelections = [...defaultSelections.value];
+    newSelections[colIndex] = newDigit;
+
+    if (delta === 1 && oldDigit !== 0 && newDigit === 0){
+        // console.log('鼠标向下滚动,从 非0 变为 0, 进位操作')
+        if (colIndex === 0){
+            console.log('最高位进位到10, 动态模式: three -> two')
+            currentMode.value = 'two'
+            newSelections[3] = newSelections[2]
+            newSelections[2] = newSelections[1]
+            newSelections[1] = 0
+            newSelections[0] = 1
+
+            ////更改列0 范围
+            // let newcol = Array.from({ length: 2 }, (_, k) => k)
+            // let loopArr = []
+            // for (let i = 0; i < repeatCount; i++) {
+            //     loopArr.push(...newcol)
+            // }
+            // multiData.value[0] = loopArr
+            // console.log(`列[0]数据  = ${newcol}`)
+
+        }else{
+            let carry = 1;
+            for (let i = colIndex - 1; i >= 0; i--) {
+                let newHigh = newSelections[i] + carry;
+                console.log(`高位(${i})进1后 =${newHigh}`)
+                if (newHigh <= 9) {
+                    newSelections[colIndex] = 0
+                    newSelections[i] = newHigh;
+                    carry = 0;
+                    break;
+                } else {
+                    //触发条件:连续进位
+                    if (i === 0){
+                        console.log(`连续进位到最高位, 动态模式: three -> two`)
+                        currentMode.value = 'two'
+                        newSelections[3] = newSelections[2]
+                        newSelections[2] = newSelections[1]
+                        newSelections[1] = 0
+                        newSelections[0] = 1
+                    }else{
+                        newSelections[i] = 0;
+                        carry = 1;
+                    } 
+                }   
+            }
+        }
+    }else if (delta === -1 ) {
+        // console.log('鼠标向上滚动,从 非0 变为 0, 借位操作')
+        if (oldDigit === 0 && newDigit === 9){
+            let borrow = 1;
+            for (let i = colIndex - 1; i >= -1; i--) {
+                let newHigh = i < 0 ? -1 : newSelections[i] - borrow;
+                console.log(`高位(${i})被借1后 =${newHigh}`)
+                if (newHigh >= 0) {
+                    newSelections[i] = newHigh;
+                    borrow = 0;
+                    if (currentMaxValue.value === 10.1 && currentMode.value === 'two' && i === 0 && newHigh === 0){
+                        console.log(`借位到最高位, two -> three`)
+                        currentMode.value = 'three'
+                        newSelections[0] = 9
+                        newSelections[1] = newSelections[2]
+                        newSelections[2] = newSelections[3]
+                        newSelections[3] = 0
+                    }
+                    break;
+                } else {
+                    newSelections[i] = 9;
+                    borrow = 1;
+                }
+
+                if (defaultSelections.value[0] === 0){
+                    console.log(`最高位不够借,当前列${colIndex}, 前置列${i}恢复旧值 (${defaultSelections.value}), 清零后位`)
+                    newSelections[i] = oldDigit;
+                    newSelections[colIndex] = oldDigit;
+
+                    for  (let afterI = colIndex + 1; afterI < defaultSelections.value.length; afterI++) {
+                        if (defaultSelections.value[afterI] > 0){
+                            console.log(`清零后置列${afterI}, ${defaultSelections.value[afterI]} -> 0 `)
+                            newSelections[afterI] = 0
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+    return newSelections
+
+}
+
+/**
+* 获取该列允许的最大值（根据模式)
+* @param {Object} colIndex - 当前列
+* @returns {number} - 最大值
+*/
+const getMaxDigitForColumn = (colIndex) => {
+    const mode = currentMode.value;
+    const { integerPlaces, decimalPlaces } = getModeConfig(mode);
+    const maxDigits = valueToDigits(currentMaxValue.value, mode)
+    // console.log(`maxvalue = ${currentConfig.value.maxValue}, maxDigits= ${maxDigits}`)
+
+    // 整数位：从高位到低位，最高位可能受限
+    if (colIndex < integerPlaces) {
+        if (integerPlaces === 2 && colIndex === 0) return maxDigits[0]; // 十位最大
+        return 9;
+    }
+    // 小数位：0-9
+    return 9;
+};
+
+/**
+* 用于监听滚轮操作，适合实时响应滚动方向并触发值变化
+* @param {Object} colIndex - 当前滚动元素的索引,从0开始
+* @param {Object} event - 滚轮事件,用于指示鼠标滚轮或触摸板的垂直滚动量
+*/
+const onWheel = (colIndex, event) => {
+    event.preventDefault(); // 阻止默认滚动行为（preventDefault），消除惯性
+
+    if (isAdjusting) return;
+    if (wheelTimer) clearTimeout(wheelTimer);
+
+    // 防抖，自定义滚动行为, 避免滚轮连续触发导致跳跃,将滚轮交互从触摸滑动中分离
+    wheelTimer = setTimeout(() => {
+        delta = event.deltaY > 0 ? 1 : -1; // 向下滚+1，向上滚-1
+        const currentValue = defaultSelections.value[colIndex];
+        let newValue = currentValue + delta;
+
+        // 获取该列允许的最大值（根据模式）
+        const maxDigit = getMaxDigitForColumn(colIndex);
+        if (newValue < 0) newValue = 0;
+        if (newValue > maxDigit) newValue = maxDigit;
+
+        let newSelections = [...defaultSelections.value];
+
+        if (newValue === currentValue) {
+            let newdigit = newValue
+            if (newValue === 9 || newValue === 0) {
+                newdigit = newValue === 9 ? 0 : 9
+            }
+            console.log(`鼠标滚轮事件进位/借位, oldValue(${currentValue}) -> newValue(${newdigit}) `)
+            newSelections = applyCarryBorrow(colIndex, currentValue, newdigit)
+
+        }else{
+            //普通递增或递减
+            console.log(`---------- `)
+            console.log(`鼠标滚轮事件普通递增或递减, oldValue(${currentValue}) -> newValue(${newValue}), currentConfig=${currentConfig.value} `)
+
+            newSelections[colIndex] = newValue;
+        }
+
+        if (currentMaxValue.value === 10.1 && colIndex === 0 && currentMode.value === 'two' && currentValue === 1 && newValue === 0)
+        {
+            //10.10 -> 移动最高位(1->0) -> 0.1
+            console.log(`10.xx -> 移动最高位(1->0), 最高位递减,动态模式: two -> three`)
+            currentMode.value = 'three'
+            newSelections[1] = newSelections[2]
+            newSelections[2] = newSelections[3]
+            newSelections[3] = 0
+        }
+        
+        const finalSelections = applyMaxValueLimit(colIndex, newSelections);
+
+        //记录旧值和需要同步滚动位置的所有被修改列
+        const oldSelections = [...defaultSelections.value];
+        const needSync = [];
+        for (let i = 0; i < finalSelections.length; i++) {
+            if (finalSelections[i] !== oldSelections[i]) {
+                needSync.push(i);
+            }
+        }
+
+        // 更新状态
+        defaultSelections.value = [...finalSelections];
+        selectedMultiIndex.value = [...finalSelections];
+
+        console.log(`needSync = ${needSync}`)
+        // 等待 DOM 更新后同步所有被修改列的滚动位置
+        nextTick();
+        for (const col of needSync) {
+            console.log(`即将执行滚动事件,同步被修改列${col}=${finalSelections[col]}`)
+            resetToMiddle(col, finalSelections[col]);
+        }
+
+    }, 50);
+}
+
+
+/**
+* 获取滚动后当前列的中心位置的真实数字
+* @param {Object} colIndex - 当前滚动元素的索引,从0开始
+* @param {Object} event - 中心数值
+*/
 const getCenterValue = (colIndex) => {
     const container = columnRefs.value[colIndex]
     if (!container) return 0
@@ -403,95 +690,26 @@ const getCenterValue = (colIndex) => {
     return defaultSelections.value[colIndex]
 }
 
+/**
+* 用于监听元素的滚动位置变化，适合处理滚动结束后的对齐逻辑
+* 不监听滚动方向, scroll 事件可能在滚动过程中频繁触发，无法精确区分用户滚轮还是程序触发的滚动
+* @param {Object} colIndex - 当前滚动元素的索引,从0开始
+* @param {Object} event - 元素的滚动事件, 当元素的滚动位置（scrollTop/scrollLeft）发生变化时触发
+*/
 const onMultiScroll = (colIndex, event) => {
     if (isAdjusting) return
     if (scrollTimer) clearTimeout(scrollTimer)
 
     // 滚动事件开始时,记录当前列滚动前的数字
     const oldDigit = defaultSelections.value[colIndex];
+    console.log(`---------- `)
 
     scrollTimer = setTimeout(async () => {// 添加 async
         // 获取滚动后当前列的中心位置的真实数字
         const newDigit = getCenterValue(colIndex);
-
-        //console.log(`当前位(${colIndex}) newDigit=${newDigit} oldDigit=${oldDigit} `)
-
         if (newDigit === oldDigit) return;
 
-        // 1. 构建新选中的数组（仅修改当前列）
-        let newSelections = [...defaultSelections.value];
-        newSelections[colIndex] = newDigit;
-
-        // 2. 判断是否需要进位/借位（仅对非最高列，且发生了边界跨越）
-        if (colIndex !== 0) {
-            // 进位：从 9 变为 0（向下滚动过边界）
-            if (oldDigit === 9 && newDigit === 0) {
-                // 高位进1
-                let carry = 1;
-                for (let i = colIndex - 1; i >= 0; i--) {
-                    let newHigh = newSelections[i] + carry;
-                    console.log(`高位(${i})进1后 =${newHigh}`)
-                    if (newHigh <= 9) {
-                        newSelections[i] = newHigh;
-                        carry = 0;
-                        break;
-                    } else {
-                        //触发条件:连续进位
-                        newSelections[i] = 0;
-                        carry = 1;
-                    }   
-                }
-                
-            }
-            // 借位：从 0 变为 9（向上滚动过边界）
-            else if (oldDigit === 0 && newDigit === 9) {
-                // 向高位借1
-                let borrow = 1;
-                for (let i = colIndex - 1; i >= 0; i--) {
-                    let newHigh = newSelections[i] - borrow;
-                    console.log(`高位(${i})被借1后 =${newHigh}`)
-                    if (newHigh >= 0) {
-                        newSelections[i] = newHigh;
-                        borrow = 0;
-                        break;
-                    } else {
-                        newSelections[i] = 9;
-                        borrow = 1;
-                    }
-
-                    if (i === 0){
-                        // 如果最高位不够借，不允许（例如 最大值00.00,最高位 0→9 不应发生），保持原值并清空进位
-                        console.log(`最高位不够借,恢复旧值 (${defaultSelections.value[0]})`)
-                        newSelections[0] = defaultSelections.value[0];
-                    }
-                }
-            }
-        }
-
-        
-        // 3. 应用最大值限制（若超过则修正为最大值，并返回修正后的数组）
-        const finalSelections = applyMaxValueLimit(newSelections);
-
-        // 4.记录旧值和需要同步滚动位置的所有被修改列
-        const oldSelections = [...defaultSelections.value];
-        const needSync = [];
-
-        for (let i = 0; i < finalSelections.length; i++) {
-            if (finalSelections[i] !== oldSelections[i]) {
-                needSync.push(i);
-            }
-        }
-
-        // 5. 更新状态
-        defaultSelections.value = [...finalSelections];
-        selectedMultiIndex.value = [...finalSelections];
-
-        // 6. 等待 DOM 更新后同步所有被修改列的滚动位置
-        await nextTick();
-        for (const col of needSync) {
-            //console.log(`同步被修改列${col}=${finalSelections[col]}`)
-            resetToMiddle(col, finalSelections[col]);
-        }
+        console.log(`元素的滚动位置发生变化, 当前位(${colIndex}), oldDigit=(${oldDigit}) ->  newDigit=(${newDigit})`)
 
         // 边界重置（仅当前列）
         const scrollTop = event.target.scrollTop
@@ -504,60 +722,49 @@ const onMultiScroll = (colIndex, event) => {
         }
     }, 50)
 }
+
 /**
  * 应用最大值限制
  * @param {number[]} selections 当前各列选中的数字数组
  * @returns {number[]} 修正后的数字数组（若未超过则原样返回，否则返回最大值的各位数字）
  */
-const applyMaxValueLimit = (selections) => {
-    // 将 selections 转换为数值字符串
-    let numStr = selections.map(v => v.toString()).join('');
-    const decimalPlaces = currentConfig.value.maxDecimalPlaces;
-    
-    // 插入小数点
-    if (decimalPlaces > 0 && numStr.length > decimalPlaces) {
-        const intPart = numStr.slice(0, -decimalPlaces);
-        const decPart = numStr.slice(-decimalPlaces);
-        numStr = `${intPart}.${decPart}`;
-    }
-    let currentVal = parseFloat(numStr); //字符串转为数字
-    const maxVal = currentConfig.value.maxValue;
+const applyMaxValueLimit = (colIndex, selections) => {
+    const config = currentConfig.value
+    const currentVal = computeCurrentValue(selections)
+    const maxVal = config.maxValue
+
+    console.log(`实际数值= ${currentVal}, max= ${maxVal}`)
 
     if (currentVal > maxVal) {
-        // 超过最大值，将整体值设为最大值，并分解为各列数字
-        const maxValStr = maxVal.toString();
-        const totalDigits = selections.length;
-        let targetStr = '';
-
-        if (decimalPlaces > 0) {
-            const [intPart, decPart] = maxValStr.split('.');
-            const intDigits = totalDigits - decimalPlaces;
-            const paddedInt = intPart.padStart(intDigits, '0');
-            const paddedDec = (decPart || '').padEnd(decimalPlaces, '0');
-            targetStr = paddedInt + paddedDec;
-        } else {
-            targetStr = maxValStr.padStart(totalDigits, '0');
+        // 重置为最大值，使用当前模式生成数字
+        const mode = currentMode.value
+        //防呆
+        if (mode === 'three' && maxVal === 10.1){
+            console.log('当前模式是 three，最大值10.1实际上是两位小数，应切到 two')
+            return
         }
-
-        // 确保长度足够
-        while (targetStr.length < totalDigits) targetStr = '0' + targetStr;
-        // 长度超长则截断（一般不会发生）
-        if (targetStr.length > totalDigits) targetStr = targetStr.slice(-totalDigits);
-
-        const finalSelections = targetStr.split('').map(ch => parseInt(ch, 10));
-        console.log(`数值超过最大值，已重置为最大值：${selections} → [${finalSelections.join(',')}]`);
+        const currentDigits = valueToDigits(currentVal, mode)
+        const maxDigits = valueToDigits(maxVal, mode)
         
-        for (let i = 0; i < selections.length; i++) {
-            if (selections[i] !== finalSelections[i]) {
-                //console.log(`重置数值列${i}, ${selections[i]} -> ${finalSelections[i]}`)
-                resetToMiddle(i, finalSelections[i]);
+        console.log(`mode= ${mode}, ${currentDigits} -> ${maxDigits}`)
+        for (let i = 0; i < currentDigits.length; i++) {
+            if (currentDigits[i] !== maxDigits[i]){
+                console.log(`滚动列 ${i} 时,超出最大值`)
+                resetToMiddle(i, maxDigits[i]);
             }
         }
-        
-        return finalSelections;
+        return maxDigits
     }
-    return selections;
-};
+
+    return selections
+    
+}
+
+/**
+ * 滚动元素滚动目标数字
+ * @param {Object} colIndex - 当前滚动元素的索引,从0开始
+ * @param {number} targetNumber 目标数字
+ */
 const resetToMiddle = (colIndex, targetNumber) => {
     const container = columnRefs.value[colIndex];
     if (!container) return;
@@ -577,18 +784,23 @@ const resetToMiddle = (colIndex, targetNumber) => {
     const containerHeight = container.clientHeight;
     let targetScrollTop = targetIndex * itemHeight - (containerHeight / 2) + (itemHeight / 2);
     targetScrollTop = Math.max(0, Math.min(targetScrollTop, container.scrollHeight - containerHeight));
+    console.log('即将触发系统默认滚动事件, onMultiScroll')
     container.scrollTop = targetScrollTop;
 };
   
-// 设置列引用
+
+/**
+ * 设置列引用
+ * @param {Object} el - 滚动元素
+ * @param {Object} colIndex - 当前滚动元素的索引,从0开始
+ */
 const setColumnRef = (el, colIndex) => {
     if (el && !columnRefs.value[colIndex]) {
         columnRefs.value[colIndex] = el
     }
 }
 
-/** Test-roller-selector(single)
-    ********************************************/
+/** Test-roller-selector(single)********************************************/
             // 生成超长循环数据
 const single_initLoopData = () => {
     loopData.value = []
@@ -691,9 +903,7 @@ const single_resetToMiddle = (value) => {
     
 
 
-/********************************************* 
-    * Test-numeric-keypad
-    ********************************************/
+/***** Test-numeric-keypad********************************************/
         
 // 判断数字键是否可用（用于键盘按钮）
 const isNumberKeyDisabled = (inputValue) => {
@@ -709,16 +919,17 @@ const isNumberKeyDisabled = (inputValue) => {
         const [integerPart, decimalPart] = predictvalue.split('.')
         // 限制整数位数
         if (integerPart.length > currentMaxIntegerPlaces.value) {
-                return true
+            return true
         }
         //限制小数位数
-        if (decimalPart && decimalPart.length > currentMaxDecimalPlaces.value) {
-                return true
+        let places = currentMaxValue.value === 10.1 && integerPart.length === 2 ? 2 : currentMaxDecimalPlaces.value
+        if (decimalPart && decimalPart.length > places) {
+            return true
         }
     } else {
         // 没有小数点的纯整数
         if (predictvalue.length > currentMaxIntegerPlaces.value) {
-                return true
+            return true
         }
     }
     
@@ -820,7 +1031,6 @@ const applyNumberRestrictions = (value) => {
                     result.substring(firstDotIndex + 1).replace(/\./g, '')
     }
     
-    
     if (result.includes('.')) {
         const [integerPart, decimalPart] = result.split('.')
 
@@ -831,9 +1041,10 @@ const applyNumberRestrictions = (value) => {
             result = truncatedInteger + '.' + decimalPart
         }
 
-        // 3. 限制小数位数
-        if (decimalPart && decimalPart.length > currentMaxDecimalPlaces.value) {
-            result = integerPart + '.' + decimalPart.substring(0, currentMaxDecimalPlaces.value)
+        // 3. 限制小数位数//限制小数位数
+        let places = currentMaxValue.value === 10.1 && integerPart.length === 2 ? 2 : currentMaxDecimalPlaces.value
+        if (decimalPart && decimalPart.length > places) {
+            result = integerPart + '.' + decimalPart.substring(0, places)
         }
     } else {
         // 没有小数点的纯整数
@@ -841,7 +1052,6 @@ const applyNumberRestrictions = (value) => {
             result = result.substring(0, currentMaxIntegerPlaces.value)
         }
     }
-    
     
     // 4. 处理前导零
     if (result.startsWith('0') && result.length > 1 && !result.startsWith('0.')) {
@@ -896,7 +1106,10 @@ const closeKeyboard = () => {
 // 1. 数据源：如果是 ref，直接写 selectedConfig；如果是 reactive 对象属性，用箭头函数 () => selectedConfig
 watch(selectedConfig, (newVal, oldVal) => {
     if (newVal !== oldVal) {
-        //console.log('配置发生了变化')
+        console.log('配置发生了变化')
+        // 重置默认选择为全0，避免旧值影响
+        defaultSelections.value = Array(4).fill(0)
+        initLoopData(newVal)
     }
 },
 {
@@ -909,7 +1122,10 @@ watch(selectedConfig, (newVal, oldVal) => {
 ********************************************/
 onMounted(() => {
     /***** Test-roller-selector(multiplus) **********/
-    initLoopData(numberInputConfig.value[0])
+    // initLoopData(numberInputConfig.value[0])
+    const config = numberInputConfig.value[2] // 直接使用10.1配置
+    selectedConfig.value = config
+    initLoopData(config)
 
     /***** Test-roller-selector(single) **********/
     single_initLoopData()
@@ -919,6 +1135,10 @@ onMounted(() => {
     })
 })
 
+onUnmounted(() => {
+    if (scrollTimer) clearTimeout(scrollTimer);
+    if (wheelTimer) clearTimeout(wheelTimer);
+});
 </script>
 
 
@@ -1000,8 +1220,16 @@ onMounted(() => {
 /* 滚轮容器 */
 /* 多列布局主容器 */
 .picker-multi-column {
-    display: flex;
+    position: relative;
+    /* background-color: #d9d9d9; */
+    width: 100%;
     height: 240px;
+    flex: 1;
+    display: flex;
+    border-radius: 0.5vw;
+    overflow: hidden;
+    box-sizing: border-box;
+    justify-content: space-around;
 }
 
 .picker-wheel-container {
@@ -1086,5 +1314,21 @@ onMounted(() => {
     font-size: 28px;
     font-weight: 600;
     color: #ff9f0a;
+}
+
+.decimal-point{
+    position: absolute;
+    height: 48px;
+    /* background-color: #0B8CE8; */
+    border-radius: 0.5vw;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: Bahnschrift;
+    font-size: 48px;
+    left: 49%;
+}
+
+.three-decimal-dot{
+    left: 24%;
 }
 </style>
