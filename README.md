@@ -101,6 +101,47 @@ export default router
     不要在 <script type="module"> 中写 import './style.css'。
     可以在 <head> 中使用传统的 <link rel="stylesheet" href="style.css"> 引入 CSS
 
+### debug 模式
+1.修改 vite.config.js
+如果用 Vite：检查项目根目录下的 vite.config.js 或 vite.config.ts，确保 build.sourcemap 设置为 true 或 'inline'。
+
+export default defineConfig({
+  // ...
+  build: {
+    sourcemap: true, // 或 'inline'
+  },
+  server: {
+    sourcemap: true, // 开发环境也建议开启
+  }
+})
+修改配置后，务必重新启动开发服务器（npm run dev 或 yarn dev）
+
+2.配置 VSCode 调试器 (launch.json)
+在项目根目录下创建 .vscode/launch.json 文件，这是告诉 VSCode 如何启动和连接调试器的关键。
+对于 Vite 项目（默认端口 5173）：
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Launch Chrome against localhost",
+      "url": "http://localhost:5173", // 必须与项目实际地址完全一致[reference:10][reference:11]
+      "webRoot": "${workspaceFolder}", // Vite 项目通常指向项目根目录[reference:12]
+      "sourceMapPathOverrides": {
+        "/src/*": "${webRoot}/src/*"
+      }
+    }
+  ]
+}
+关键点：url 必须和 npm run dev 启动后的地址（包括端口）完全一致。sourceMapPathOverrides 是解决断点变灰最常见的配置，需要根据项目结构调整
+
+3.运行
+VS Code 终端执行: 
+    npm i
+    npm run dev
+按 F5 快捷键开始调试
+
 ## 形象的比喻
 1. CDN + Import Map (“生吃食材”)
 你（开发者）必须自己把菜洗好、切好、煮熟（把 Vue 组件拆成 JS 字符串，把 CSS 用 link 引入），然后直接端给客人（浏览器）吃。如果端上去的是生的（.vue 文件），客人会拉肚子（报错）。
@@ -108,56 +149,3 @@ export default router
 2. Vite 开发服务器 (“去餐厅点餐”) 
 你（开发者）写好菜单（代码），交给厨师（Vite）。厨师负责洗菜、切菜、烹饪（编译 .vue 和处理 CSS），最后端给客人的是精美的菜肴（标准 JS）。客人只需要吃就行了。
 
-
-<template>
-<div style="width=200px; height=200px;" :style="{background: $randomColor.hex()}">占位块</div>
-</template>
-
-<script setup>
-/********************************************* 
-*  使用 Composition API
-********************************************/
-import { ref, reactive, toRefs } from 'vue'
-import { computed, watch, onMounted } from 'vue'
-import { nextTick } from 'vue'
-import { toast } from '../utils/toast.js'
-
-/********************************************* 
-* 数据定义
-********************************************/
-
-/********************************************* 
-  * DOM 引用
-  ********************************************/
-
-/********************************************* 
-* computed
-    必须使用 const 变量名 = computed(() => { ... }) 的格式
-********************************************/
-
-/********************************************* 
-* 方法定义
-********************************************/
-
-
-/********************************************* 
-* watch
-
-watch(para,(newVal) => {
-    console.log('')
-})
-
-********************************************/
-/********************************************* 
-* mounted
-********************************************/
-onMounted(() => {
-  
-})
-
-</script>
-
-
-<style scoped>
-
-</style>
