@@ -5,8 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:ble": "vite --mode ble",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:ble": "vite build --mode ble",
+    "preview": "vite preview",
+    "preview:ble": "vite preview --mode ble",
+    "kill-ports": "lsof -ti :5173-5180 | xargs kill -9 || true" 
   },
   "dependencies": {
     "vue": "^3.5.32",

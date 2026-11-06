@@ -40,7 +40,7 @@ const router = createRouter({
         {
             // 默认子路由, 访问 /test 时自动跳到 /test/tableview, 返回 TestTableviewComponent.js 里的 default 组件
             path: '',
-            redirect: '/test/settings' //  重定向到 'group'
+            redirect: '/test/star' //  重定向到 'group'
         },
         {
             // 访问 /test/tableview 时显示, 文件使用的是 export default { ... }

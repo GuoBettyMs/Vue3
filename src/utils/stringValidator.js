@@ -4,16 +4,22 @@ export class StringValidator {
     // 允许的字符：中文、英文、数字、空格、下划线
     static ALLOWED_PATTERN = /[^\u4e00-\u9fa5a-zA-Z0-9\s_]/g;
     
-    // 获取字节长度
+    /**
+     * @brief 计算字符串的 UTF-8 字节长度
+     * @param str     JS 字符串
+     * @return 一个长度数字（字节数）
+     */
     static getByteLength(str) {
-        let length = 0;
-        for (let i = 0; i < str.length; i++) {
-            const code = str.charCodeAt(i);
-            if (code <= 0x7f) length += 1;// ASCII字符
-            else if (code <= 0x7ff) length += 2;// 扩展ASCII
-            else length += 3;// 中文等
-        }
-        return length;
+        return new TextEncoder().encode(str).length;
+        // 以下代码若str含表情符号如😊,每个表情长度会多算2个
+        // let length = 0;
+        // for (let i = 0; i < str.length; i++) {
+        //     const code = str.charCodeAt(i);
+        //     if (code <= 0x7f) length += 1;// ASCII字符
+        //     else if (code <= 0x7ff) length += 2;// 扩展ASCII
+        //     else length += 3;// 中文等
+        // }
+        // return length;
     }
     
     // 按字节截断

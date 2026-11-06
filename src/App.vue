@@ -105,3 +105,5 @@ const goToAboutByName = () =>  {
   cursor: pointer;
 }
 </style>
+<!-- 使用 src 属性引入外部样式, 加上 scoped 代表作用范围是当前组件 -->
+<style scoped src="./style.css"></style>
